@@ -3,7 +3,7 @@
 import argparse
 import dataclasses
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import (TYPE_CHECKING, Any, Dict, List, Literal, Mapping, Optional,
                     Tuple, Type, Union, cast, get_args)
 
@@ -88,8 +88,171 @@ def nullable_kvs(val: str) -> Optional[Mapping[str, int]]:
 
 
 @dataclass
+class ModelConfig:
+    """Configuration for model loading and setup."""
+    model: str = 'facebook/opt-125m'
+    served_model_name: Optional[Union[str, List[str]]] = None
+    tokenizer: Optional[str] = None
+    hf_config_path: Optional[str] = None
+    task: TaskOption = "auto"
+    skip_tokenizer_init: bool = False
+    tokenizer_mode: str = 'auto'
+    trust_remote_code: bool = False
+    allowed_local_media_path: str = ""
+    download_dir: Optional[str] = None
+    load_format: str = 'auto'
+    config_format: ConfigFormat = ConfigFormat.AUTO
+    dtype: str = 'auto'
+    revision: Optional[str] = None
+    code_revision: Optional[str] = None
+    tokenizer_revision: Optional[str] = None
+    max_model_len: Optional[int] = None
+    rope_scaling: Optional[Dict[str, Any]] = None
+    rope_theta: Optional[float] = None
+    hf_overrides: Optional[HfOverrides] = None
+    model_impl: str = "auto"
+
+
+@dataclass
+class KVCacheConfig:
+    """Configuration for KV cache management."""
+    kv_cache_dtype: str = 'auto'
+    block_size: Optional[int] = None
+    enable_prefix_caching: Optional[bool] = None
+    disable_sliding_window: bool = False
+    swap_space: float = 4  # GiB
+    cpu_offload_gb: float = 0  # GiB
+    gpu_memory_utilization: float = 0.90
+    num_gpu_blocks_override: Optional[int] = None
+    num_lookahead_slots: int = 0
+    calculate_kv_scales: Optional[bool] = None
+
+
+@dataclass
+class ParallelConfig:
+    """Configuration for parallelism strategies."""
+    distributed_executor_backend: Optional[Union[str, Type[ExecutorBase]]] = None
+    pipeline_parallel_size: int = 1
+    tensor_parallel_size: int = 1
+    enable_expert_parallel: bool = False
+    max_parallel_loading_workers: Optional[int] = None
+    disable_custom_all_reduce: bool = False
+    tokenizer_pool_size: int = 0
+    tokenizer_pool_type: Union[str, Type["BaseTokenizerGroup"]] = "ray"
+    tokenizer_pool_extra_config: Optional[Dict[str, Any]] = None
+    worker_cls: str = "auto"
+    worker_extension_cls: str = ""
+    ray_workers_use_nsight: bool = False
+
+
+@dataclass
+class SchedulerConfig:
+    """Configuration for request scheduling."""
+    max_num_batched_tokens: Optional[int] = None
+    max_num_seqs: Optional[int] = None
+    max_num_partial_prefills: Optional[int] = 1
+    max_long_partial_prefills: Optional[int] = 1
+    long_prefill_token_threshold: Optional[int] = 0
+    scheduler_delay_factor: float = 0.0
+    enable_chunked_prefill: Optional[bool] = None
+    num_scheduler_steps: int = 1
+    multi_step_stream_outputs: bool = True
+    scheduling_policy: Literal["fcfs", "priority"] = "fcfs"
+    scheduler_cls: Union[str, Type[object]] = "vllm.core.scheduler.Scheduler"
+    preemption_mode: Optional[str] = None
+
+
+@dataclass
+class LoRAConfig:
+    """Configuration for LoRA adapters."""
+    enable_lora: bool = False
+    enable_lora_bias: bool = False
+    max_loras: int = 1
+    max_lora_rank: int = 16
+    fully_sharded_loras: bool = False
+    lora_extra_vocab_size: int = 256
+    long_lora_scaling_factors: Optional[Tuple[float]] = None
+    lora_dtype: Optional[Union[str, torch.dtype]] = 'auto'
+    max_cpu_loras: Optional[int] = None
+    qlora_adapter_name_or_path: Optional[str] = None
+
+
+@dataclass
+class SpeculativeConfig:
+    """Configuration for speculative decoding."""
+    speculative_model: Optional[str] = None
+    speculative_model_quantization: Optional[str] = None
+    speculative_draft_tensor_parallel_size: Optional[int] = None
+    num_speculative_tokens: Optional[int] = None
+    speculative_disable_mqa_scorer: Optional[bool] = False
+    speculative_max_model_len: Optional[int] = None
+    speculative_disable_by_batch_size: Optional[int] = None
+    ngram_prompt_lookup_max: Optional[int] = None
+    ngram_prompt_lookup_min: Optional[int] = None
+    spec_decoding_acceptance_method: str = 'rejection_sampler'
+    typical_acceptance_sampler_posterior_threshold: Optional[float] = None
+    typical_acceptance_sampler_posterior_alpha: Optional[float] = None
+    disable_logprobs_during_spec_decoding: Optional[bool] = None
+
+
+@dataclass
+class ObservabilityConfig:
+    """Configuration for monitoring and observability."""
+    disable_log_stats: bool = False
+    show_hidden_metrics_for_version: Optional[str] = None
+    otlp_traces_endpoint: Optional[str] = None
+    collect_detailed_traces: Optional[str] = None
+
+
+@dataclass
+class PromptAdapterConfig:
+    """Configuration for prompt adapters."""
+    enable_prompt_adapter: bool = False
+    max_prompt_adapters: int = 1
+    max_prompt_adapter_token: int = 0
+
+
+@dataclass
+class DecodingConfig:
+    """Configuration for decoding methods."""
+    guided_decoding_backend: str = 'xgrammar'
+    logits_processor_pattern: Optional[str] = None
+    max_logprobs: int = 20
+    enable_reasoning: Optional[bool] = None
+    reasoning_parser: Optional[str] = None
+
+
+@dataclass
 class EngineArgs:
     """Arguments for vLLM engine."""
+    # Model configuration
+    model_config: ModelConfig = field(default_factory=ModelConfig)
+    
+    # KV Cache configuration
+    kv_cache_config: KVCacheConfig = field(default_factory=KVCacheConfig)
+    
+    # Parallelism configuration
+    parallel_config: ParallelConfig = field(default_factory=ParallelConfig)
+    
+    # Scheduler configuration
+    scheduler_config: SchedulerConfig = field(default_factory=SchedulerConfig)
+    
+    # LoRA configuration
+    lora_config: LoRAConfig = field(default_factory=LoRAConfig)
+    
+    # Speculative decoding configuration
+    speculative_config: SpeculativeConfig = field(default_factory=SpeculativeConfig)
+    
+    # Observability configuration
+    observability_config: ObservabilityConfig = field(default_factory=ObservabilityConfig)
+    
+    # Prompt adapter configuration
+    prompt_adapter_config: PromptAdapterConfig = field(default_factory=PromptAdapterConfig)
+    
+    # Decoding configuration
+    decoding_config: DecodingConfig = field(default_factory=DecodingConfig)
+    
+    # Legacy/individual arguments - to be migrated to config objects
     model: str = 'facebook/opt-125m'
     served_model_name: Optional[Union[str, List[str]]] = None
     tokenizer: Optional[str] = None
@@ -220,6 +383,9 @@ class EngineArgs:
     use_tqdm_on_load: bool = True
 
     def __post_init__(self):
+        # Initialize config objects from individual arguments
+        self._initialize_config_objects()
+        
         if not self.tokenizer:
             self.tokenizer = self.model
 
@@ -242,18 +408,147 @@ class EngineArgs:
         # Setup plugins
         from vllm.plugins import load_general_plugins
         load_general_plugins()
+    
+    def _initialize_config_objects(self):
+        """Initialize configuration objects from individual arguments."""
+        # Model config
+        self.model_config = ModelConfig(
+            model=self.model,
+            served_model_name=self.served_model_name,
+            tokenizer=self.tokenizer,
+            hf_config_path=self.hf_config_path,
+            task=self.task,
+            skip_tokenizer_init=self.skip_tokenizer_init,
+            tokenizer_mode=self.tokenizer_mode,
+            trust_remote_code=self.trust_remote_code,
+            allowed_local_media_path=self.allowed_local_media_path,
+            download_dir=self.download_dir,
+            load_format=self.load_format,
+            config_format=self.config_format,
+            dtype=self.dtype,
+            revision=self.revision,
+            code_revision=self.code_revision,
+            tokenizer_revision=self.tokenizer_revision,
+            max_model_len=self.max_model_len,
+            rope_scaling=self.rope_scaling,
+            rope_theta=self.rope_theta,
+            hf_overrides=self.hf_overrides,
+            model_impl=self.model_impl,
+        )
+        
+        # KV Cache config
+        self.kv_cache_config = KVCacheConfig(
+            kv_cache_dtype=self.kv_cache_dtype,
+            block_size=self.block_size,
+            enable_prefix_caching=self.enable_prefix_caching,
+            disable_sliding_window=self.disable_sliding_window,
+            swap_space=self.swap_space,
+            cpu_offload_gb=self.cpu_offload_gb,
+            gpu_memory_utilization=self.gpu_memory_utilization,
+            num_gpu_blocks_override=self.num_gpu_blocks_override,
+            num_lookahead_slots=self.num_lookahead_slots,
+            calculate_kv_scales=self.calculate_kv_scales,
+        )
+        
+        # Parallel config
+        self.parallel_config = ParallelConfig(
+            distributed_executor_backend=self.distributed_executor_backend,
+            pipeline_parallel_size=self.pipeline_parallel_size,
+            tensor_parallel_size=self.tensor_parallel_size,
+            enable_expert_parallel=self.enable_expert_parallel,
+            max_parallel_loading_workers=self.max_parallel_loading_workers,
+            disable_custom_all_reduce=self.disable_custom_all_reduce,
+            tokenizer_pool_size=self.tokenizer_pool_size,
+            tokenizer_pool_type=self.tokenizer_pool_type,
+            tokenizer_pool_extra_config=self.tokenizer_pool_extra_config,
+            worker_cls=self.worker_cls,
+            worker_extension_cls=self.worker_extension_cls,
+            ray_workers_use_nsight=self.ray_workers_use_nsight,
+        )
+        
+        # Scheduler config
+        self.scheduler_config = SchedulerConfig(
+            max_num_batched_tokens=self.max_num_batched_tokens,
+            max_num_seqs=self.max_num_seqs,
+            max_num_partial_prefills=self.max_num_partial_prefills,
+            max_long_partial_prefills=self.max_long_partial_prefills,
+            long_prefill_token_threshold=self.long_prefill_token_threshold,
+            scheduler_delay_factor=self.scheduler_delay_factor,
+            enable_chunked_prefill=self.enable_chunked_prefill,
+            num_scheduler_steps=self.num_scheduler_steps,
+            multi_step_stream_outputs=self.multi_step_stream_outputs,
+            scheduling_policy=self.scheduling_policy,
+            scheduler_cls=self.scheduler_cls,
+            preemption_mode=self.preemption_mode,
+        )
+        
+        # LoRA config
+        self.lora_config = LoRAConfig(
+            enable_lora=self.enable_lora,
+            enable_lora_bias=self.enable_lora_bias,
+            max_loras=self.max_loras,
+            max_lora_rank=self.max_lora_rank,
+            fully_sharded_loras=self.fully_sharded_loras,
+            lora_extra_vocab_size=self.lora_extra_vocab_size,
+            long_lora_scaling_factors=self.long_lora_scaling_factors,
+            lora_dtype=self.lora_dtype,
+            max_cpu_loras=self.max_cpu_loras,
+            qlora_adapter_name_or_path=self.qlora_adapter_name_or_path,
+        )
+        
+        # Speculative config
+        self.speculative_config = SpeculativeConfig(
+            speculative_model=self.speculative_model,
+            speculative_model_quantization=self.speculative_model_quantization,
+            speculative_draft_tensor_parallel_size=self.speculative_draft_tensor_parallel_size,
+            num_speculative_tokens=self.num_speculative_tokens,
+            speculative_disable_mqa_scorer=self.speculative_disable_mqa_scorer,
+            speculative_max_model_len=self.speculative_max_model_len,
+            speculative_disable_by_batch_size=self.speculative_disable_by_batch_size,
+            ngram_prompt_lookup_max=self.ngram_prompt_lookup_max,
+            ngram_prompt_lookup_min=self.ngram_prompt_lookup_min,
+            spec_decoding_acceptance_method=self.spec_decoding_acceptance_method,
+            typical_acceptance_sampler_posterior_threshold=self.typical_acceptance_sampler_posterior_threshold,
+            typical_acceptance_sampler_posterior_alpha=self.typical_acceptance_sampler_posterior_alpha,
+            disable_logprobs_during_spec_decoding=self.disable_logprobs_during_spec_decoding,
+        )
+        
+        # Observability config
+        self.observability_config = ObservabilityConfig(
+            disable_log_stats=self.disable_log_stats,
+            show_hidden_metrics_for_version=self.show_hidden_metrics_for_version,
+            otlp_traces_endpoint=self.otlp_traces_endpoint,
+            collect_detailed_traces=self.collect_detailed_traces,
+        )
+        
+        # Prompt adapter config
+        self.prompt_adapter_config = PromptAdapterConfig(
+            enable_prompt_adapter=self.enable_prompt_adapter,
+            max_prompt_adapters=self.max_prompt_adapters,
+            max_prompt_adapter_token=self.max_prompt_adapter_token,
+        )
+        
+        # Decoding config
+        self.decoding_config = DecodingConfig(
+            guided_decoding_backend=self.guided_decoding_backend,
+            logits_processor_pattern=self.logits_processor_pattern,
+            max_logprobs=self.max_logprobs,
+            enable_reasoning=self.enable_reasoning,
+            reasoning_parser=self.reasoning_parser,
+        )
 
     @staticmethod
     def add_cli_args(parser: FlexibleArgumentParser) -> FlexibleArgumentParser:
         """Shared CLI arguments for vLLM engine."""
 
         # Model arguments
-        parser.add_argument(
+        model_group = parser.add_argument_group("Model Configuration")
+        model_group.add_argument(
             '--model',
             type=str,
             default=EngineArgs.model,
             help='Name or path of the huggingface model to use.')
-        parser.add_argument(
+        model_group.add_argument(
             '--task',
             default=EngineArgs.task,
             choices=get_args(TaskOption),
@@ -262,46 +557,46 @@ class EngineArgs:
             'multiple tasks. When the model only supports one task, ``"auto"`` '
             'can be used to select it; otherwise, you must specify explicitly '
             'which task to use.')
-        parser.add_argument(
+        model_group.add_argument(
             '--tokenizer',
             type=nullable_str,
             default=EngineArgs.tokenizer,
             help='Name or path of the huggingface tokenizer to use. '
             'If unspecified, model name or path will be used.')
-        parser.add_argument(
+        model_group.add_argument(
             "--hf-config-path",
             type=nullable_str,
             default=EngineArgs.hf_config_path,
             help='Name or path of the huggingface config to use. '
             'If unspecified, model name or path will be used.')
-        parser.add_argument(
+        model_group.add_argument(
             '--skip-tokenizer-init',
             action='store_true',
             help='Skip initialization of tokenizer and detokenizer. '
             'Expects valid prompt_token_ids and None for prompt from '
             'the input. The generated output will contain token ids.')
-        parser.add_argument(
+        model_group.add_argument(
             '--revision',
             type=nullable_str,
             default=None,
             help='The specific model version to use. It can be a branch '
             'name, a tag name, or a commit id. If unspecified, will use '
             'the default version.')
-        parser.add_argument(
+        model_group.add_argument(
             '--code-revision',
             type=nullable_str,
             default=None,
             help='The specific revision to use for the model code on '
             'Hugging Face Hub. It can be a branch name, a tag name, or a '
             'commit id. If unspecified, will use the default version.')
-        parser.add_argument(
+        model_group.add_argument(
             '--tokenizer-revision',
             type=nullable_str,
             default=None,
             help='Revision of the huggingface tokenizer to use. '
             'It can be a branch name, a tag name, or a commit id. '
             'If unspecified, will use the default version.')
-        parser.add_argument(
+        model_group.add_argument(
             '--tokenizer-mode',
             type=str,
             default=EngineArgs.tokenizer_mode,
@@ -312,23 +607,23 @@ class EngineArgs:
             '"mistral" will always use the `mistral_common` tokenizer. \n* '
             '"custom" will use --tokenizer to select the '
             'preregistered tokenizer.')
-        parser.add_argument('--trust-remote-code',
+        model_group.add_argument('--trust-remote-code',
                             action='store_true',
                             help='Trust remote code from huggingface.')
-        parser.add_argument(
+        model_group.add_argument(
             '--allowed-local-media-path',
             type=str,
             help="Allowing API requests to read local images or videos "
             "from directories specified by the server file system. "
             "This is a security risk. "
             "Should only be enabled in trusted environments.")
-        parser.add_argument('--download-dir',
+        model_group.add_argument('--download-dir',
                             type=nullable_str,
                             default=EngineArgs.download_dir,
                             help='Directory to download and load the weights, '
                             'default to the default cache dir of '
                             'huggingface.')
-        parser.add_argument(
+        model_group.add_argument(
             '--load-format',
             type=str,
             default=EngineArgs.load_format,
@@ -350,14 +645,14 @@ class EngineArgs:
             'Model Streamer \n'
             '* "bitsandbytes" will load the weights using bitsandbytes '
             'quantization.\n')
-        parser.add_argument(
+        model_group.add_argument(
             '--config-format',
             default=EngineArgs.config_format,
             choices=[f.value for f in ConfigFormat],
             help='The format of the model config to load.\n\n'
             '* "auto" will try to load the config in hf format '
             'if available else it will try to load in mistral format ')
-        parser.add_argument(
+        model_group.add_argument(
             '--dtype',
             type=str,
             default=EngineArgs.dtype,
@@ -372,20 +667,12 @@ class EngineArgs:
             '* "bfloat16" for a balance between precision and range.\n'
             '* "float" is shorthand for FP32 precision.\n'
             '* "float32" for FP32 precision.')
-        parser.add_argument(
-            '--kv-cache-dtype',
-            type=str,
-            choices=['auto', 'fp8', 'fp8_e5m2', 'fp8_e4m3'],
-            default=EngineArgs.kv_cache_dtype,
-            help='Data type for kv cache storage. If "auto", will use model '
-            'data type. CUDA 11.8+ supports fp8 (=fp8_e4m3) and fp8_e5m2. '
-            'ROCm (AMD GPU) supports fp8 (=fp8_e4m3)')
-        parser.add_argument('--max-model-len',
+        model_group.add_argument('--max-model-len',
                             type=int,
                             default=EngineArgs.max_model_len,
                             help='Model context length. If unspecified, will '
                             'be automatically derived from the model config.')
-        parser.add_argument(
+        model_group.add_argument(
             '--guided-decoding-backend',
             type=str,
             default='xgrammar',
@@ -401,7 +688,7 @@ class EngineArgs:
             'all available options are: [xgrammar:no-fallback, '
             'xgrammar:disable-any-whitespace, '
             'outlines:no-fallback, lm-format-enforcer:no-fallback]')
-        parser.add_argument(
+        model_group.add_argument(
             '--logits-processor-pattern',
             type=nullable_str,
             default=None,
@@ -409,7 +696,7 @@ class EngineArgs:
             'qualified names that can be passed with the `logits_processors` '
             'extra completion argument. Defaults to None, which allows no '
             'processors.')
-        parser.add_argument(
+        model_group.add_argument(
             '--model-impl',
             type=str,
             default=EngineArgs.model_impl,
@@ -421,6 +708,28 @@ class EngineArgs:
             '* "vllm" will use the vLLM model implementation.\n'
             '* "transformers" will use the Transformers model '
             'implementation.\n')
+        model_group.add_argument('--seed',
+                          type=int,
+                          default=EngineArgs.seed,
+                          help='Random seed for operations.')
+        model_group.add_argument(
+            '--rope-scaling',
+            default=None,
+            type=json.loads,
+            help='RoPE scaling configuration in JSON format. '
+            'For example, ``{"rope_type":"dynamic","factor":2.0}``')
+        model_group.add_argument('--rope-theta',
+                          default=None,
+                          type=float,
+                          help='RoPE theta. Use with `rope_scaling`. In '
+                          'some cases, changing the RoPE theta improves the '
+                          'performance of the scaled model.')
+        model_group.add_argument('--hf-overrides',
+                          type=json.loads,
+                          default=EngineArgs.hf_overrides,
+                          help='Extra arguments for the HuggingFace config. '
+                          'This should be a JSON string that will be '
+                          'parsed into a dictionary.')
         # Parallel arguments
         parser.add_argument(
             '--distributed-executor-backend',
@@ -1104,6 +1413,131 @@ class EngineArgs:
             "Select the reasoning parser depending on the model that you're "
             "using. This is used to parse the reasoning content into OpenAI "
             "API format. Required for ``--enable-reasoning``.")
+
+        # KV cache arguments
+        kvcache_group = parser.add_argument_group("KV Cache Configuration")
+        kvcache_group.add_argument(
+            '--kv-cache-dtype',
+            type=str,
+            choices=['auto', 'fp8', 'fp8_e5m2', 'fp8_e4m3'],
+            default=EngineArgs.kv_cache_dtype,
+            help='Data type for kv cache storage. If "auto", will use model '
+            'data type. CUDA 11.8+ supports fp8 (=fp8_e4m3) and fp8_e5m2. '
+            'ROCm (AMD GPU) supports fp8 (=fp8_e4m3)')
+        kvcache_group.add_argument('--block-size',
+                            type=int,
+                            default=EngineArgs.block_size,
+                            choices=[8, 16, 32, 64, 128],
+                            help='Token block size for contiguous chunks of '
+                            'tokens. This is ignored on neuron devices and '
+                            'set to ``--max-model-len``. On CUDA devices, '
+                            'only block sizes up to 32 are supported. '
+                            'On HPU devices, block size defaults to 128.')
+        kvcache_group.add_argument(
+            "--enable-prefix-caching",
+            action=argparse.BooleanOptionalAction,
+            default=EngineArgs.enable_prefix_caching,
+            help="Enables automatic prefix caching. "
+            "Use ``--no-enable-prefix-caching`` to disable explicitly.",
+        )
+        kvcache_group.add_argument('--disable-sliding-window',
+                            action='store_true',
+                            help='Disables sliding window, '
+                            'capping to sliding window size.')
+        kvcache_group.add_argument('--swap-space',
+                            type=float,
+                            default=EngineArgs.swap_space,
+                            help='CPU swap space size (GiB) per GPU.')
+        kvcache_group.add_argument(
+            '--cpu-offload-gb',
+            type=float,
+            default=0,
+            help='The space in GiB to offload to CPU, per GPU. '
+            'Default is 0, which means no offloading. Intuitively, '
+            'this argument can be seen as a virtual way to increase '
+            'the GPU memory size. For example, if you have one 24 GB '
+            'GPU and set this to 10, virtually you can think of it as '
+            'a 34 GB GPU. Then you can load a 13B model with BF16 weight, '
+            'which requires at least 26GB GPU memory. Note that this '
+            'requires fast CPU-GPU interconnect, as part of the model is '
+            'loaded from CPU memory to GPU memory on the fly in each '
+            'model forward pass.')
+        kvcache_group.add_argument(
+            '--gpu-memory-utilization',
+            type=float,
+            default=EngineArgs.gpu_memory_utilization,
+            help='The fraction of GPU memory to be used for the model '
+            'executor, which can range from 0 to 1. For example, a value of '
+            '0.5 would imply 50%% GPU memory utilization. If unspecified, '
+            'will use the default value of 0.9. This is a per-instance '
+            'limit, and only applies to the current vLLM instance.'
+            'It does not matter if you have another vLLM instance running '
+            'on the same GPU. For example, if you have two vLLM instances '
+            'running on the same GPU, you can set the GPU memory utilization '
+            'to 0.5 for each instance.')
+        kvcache_group.add_argument('--calculate-kv-scales',
+                          action='store_true',
+                          help='This enables dynamic calculation of '
+                          'k_scale and v_scale when kv-cache-dtype is fp8. '
+                          'If calculate-kv-scales is false, the scales will '
+                          'be loaded from the model checkpoint if available. '
+                          'Otherwise, the scales will default to 1.0.')
+        
+        # Scheduler arguments
+        scheduler_group = parser.add_argument_group("Scheduler Configuration")
+        scheduler_group.add_argument('--max-num-batched-tokens',
+                            type=int,
+                            default=EngineArgs.max_num_batched_tokens,
+                            help='Maximum number of batched tokens per '
+                            'iteration.')
+        scheduler_group.add_argument(
+            "--max-num-partial-prefills",
+            type=int,
+            default=EngineArgs.max_num_partial_prefills,
+            help="For chunked prefill, the max number of concurrent \
+            partial prefills."
+            "Defaults to 1",
+        )
+        scheduler_group.add_argument(
+            "--max-long-partial-prefills",
+            type=int,
+            default=EngineArgs.max_long_partial_prefills,
+            help="For chunked prefill, the maximum number of prompts longer "
+            "than --long-prefill-token-threshold that will be prefilled "
+            "concurrently. Setting this less than --max-num-partial-prefills "
+            "will allow shorter prompts to jump the queue in front of longer "
+            "prompts in some cases, improving latency. Defaults to 1.")
+        scheduler_group.add_argument(
+            "--long-prefill-token-threshold",
+            type=float,
+            default=EngineArgs.long_prefill_token_threshold,
+            help="For chunked prefill, a request is considered long if the "
+            "prompt is longer than this number of tokens. Defaults to 4%% of "
+            "the model's context length.",
+        )
+        scheduler_group.add_argument('--max-num-seqs',
+                            type=int,
+                            default=EngineArgs.max_num_seqs,
+                            help='Maximum number of sequences per iteration.')
+        scheduler_group.add_argument(
+            '--scheduler-delay-factor',
+            type=float,
+            default=EngineArgs.scheduler_delay_factor,
+            help='Apply a delay (of delay factor multiplied by previous '
+            'prompt latency) before scheduling next prompt.')
+        scheduler_group.add_argument(
+            '--enable-chunked-prefill',
+            action=StoreBoolean,
+            default=EngineArgs.enable_chunked_prefill,
+            nargs="?",
+            const="True",
+            help='If set, the prefill requests can be chunked based on the '
+            'max_num_batched_tokens.')
+        scheduler_group.add_argument('--num-scheduler-steps',
+                            type=int,
+                            default=1,
+                            help=('Maximum number of forward steps per '
+                                  'scheduler call.'))
 
         return parser
 
